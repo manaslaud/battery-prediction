@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block title %}Predictor · Battery SOH{% endblock %}
+{% block body %}
+<main class="page">
+  <header class="page-head">
+    <h1>Predictor</h1>
+    <p class="lede">Enter current readings. Optional end-of-life values default to the training set.</p>
+  </header>
+
+  {% if load_error %}
+  <p class="banner error">{{ load_error }}</p>
+  {% endif %}
+  {% if error %}
+  <p class="banner error">{{ error }}</p>
+  {% endif %}
+
+  <div class="layout">
+    <section class="panel">
+      <h2>Readings</h2>
+      <form method="post" action="{{ url_for('predict_post') }}">
+        <label>
+          How many cycles has this cell completed?
+          <input type="number" name="cycle" step="any" min="0" required
+                 placeholder="1000" value="{{ form.cycle }}"
+                 {% if load_error %}disabled{% endif %}>
+        </label>
+        <label>
+          Total energy moved so far (Ah)
+          <input type="number" name="throughput" step="any" min="0" required
+                 placeholder="7880" value="{{ form.throughput }}"
+                 {% if load_error %}disabled{% endif %}>
+        </label>
+        <label>
+          Typical operating temperature (°C)
+          <input type="number" name="avg_temp" step="any" required
+                 placeholder="40" value="{{ form.avg_temp }}"
+                 {% if load_error %}disabled{% endif %}>
+        </label>
+
+        <details class="advanced">
+          <summary>When do you expect this cell to be worn out?</summary>
+          <label>
+            Expected end-of-life cycle count
+            <input type="number" name="max_cycle" step="any" min="0"
+                   value="{{ form.max_cycle }}" {% if load_error %}disabled{% endif %}>
+          </label>
+          <label>
+            Expected end-of-life Ah throughput
+            <input type="number" name="max_throughput" step="any" min="0"
+                   value="{{ form.max_throughput }}" {% if load_error %}disabled{% endif %}>
+          </label>
+        </details>
+
+        <label class="check">
+          <input type="checkbox" name="estimate_life"
+                 {% if form.estimate_life %}checked{% endif %}
+                 {% if load_error %}disabled{% endif %}>
+          Estimate remaining useful life
+        </label>
+        <label>
+          Extra SOH threshold (optional, e.g. 0.7)
+          <input type="number" name="custom_threshold" step="any" min="0" max="1"
+                 placeholder="0.7" value="{{ form.custom_threshold }}"
+                 {% if load_error %}disabled{% endif %}>
+        </label>
+
+        <button type="submit" {% if load_error %}disabled{% endif %}>Predict</button>
+      </form>
+    </section>
+
+    <section class="panel results">
+      <h2>Results</h2>
+      {% if soh %}
+      <p class="hero soh-{{ soh_level }}">
+        {{ (soh.hybrid_soh * 100) | round(1) }}%
+        <span>estimated health ·
+          {% if soh_level == 'healthy' %}90–100%
+          {% elif soh_level == 'caution' %}80–90%
+          {% else %}below 80%{% endif %}
+        </span>
+      </p>
+      <div class="bands compact" aria-label="SOH color bands">
+        <span class="band soh-healthy"><b>90–100%</b></span>
+        <span class="band soh-caution"><b>80–90%</b></span>
+        <span class="band soh-low"><b>0–80%</b></span>
+      </div>
+      <div class="tiles">
+        <div>
+          <span class="k">Physics model</span>
+          <span class="v soh-{{ physics_level }}">{{ (soh.physics_soh * 100) | round(1) }}%</span>
+        </div>
+        <div>
+          <span class="k">Neural correction</span>
+          <span class="v">{{ '%+.2f'|format(soh.residual * 100) }}%</span>
+        </div>
+        <div>
+          <span class="k">Hybrid SOH</span>
+          <span class="v soh-{{ soh_level }}">{{ (soh.hybrid_soh * 100) | round(1) }}%</span>
+        </div>
+      </div>
+
+      {% if life %}
+      <h3>Remaining life</h3>
+      <p class="note">Assumes constant usage rate and temperature from the readings above.</p>
+      <ul class="life">
+        {% for row in life %}
+        <li class="life-card">
+          <strong>{{ row.label }}</strong>
+          {% if row.status == 'already_below' %}
+          Already at or below this threshold.
+          {% elif row.status == 'not_reached' %}
+          Not reached within {{ row.horizon | round(0) | int }} simulated cycles.
+          {% else %}
+          Cycle {{ row.cycle | round(0) | int }}
+          <span class="muted">~{{ row.cycles_remaining | round(0) | int }} cycles from now</span>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+      {% else %}
+      <div class="empty">
+        <p>Submit readings to see:</p>
+        <ul>
+          <li>Hybrid state of health</li>
+          <li>Physics estimate vs neural correction</li>
+          <li>Cycles until 80% and 50% SOH</li>
+        </ul>
+      </div>
+      {% endif %}
+    </section>
+  </div>
+</main>
+{% endblock %}

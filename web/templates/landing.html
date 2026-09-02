@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Battery SOH predictor{% endblock %}
+{% block body %}
+<main class="page landing">
+  <section class="hero-grid">
+    <div>
+      <p class="eyebrow">Hybrid physics + neural net</p>
+      <h1>Estimate battery health from a few readings.</h1>
+      <p class="lede">
+        Trained on Oxford pouch-cell cycling data. Enter cycle count, cumulative amp-hours,
+        and temperature to get state of health and remaining life.
+      </p>
+      <div class="cta-row">
+        <a class="btn" href="{{ url_for('predict_get') }}">Open predictor</a>
+        <p class="hint">No account. One form, one result.</p>
+      </div>
+    </div>
+    <aside class="snapshot">
+      <h2>What you get</h2>
+      <p class="formula">SOH = physics + neural residual</p>
+      <ul class="snapshot-list">
+        <li><span>Inputs</span> Cycle, Ah throughput, temperature</li>
+        <li><span>Health</span> Hybrid SOH as a percentage</li>
+        <li><span>Life</span> Cycles until 80% and 50% SOH</li>
+      </ul>
+      <div class="bands" aria-label="SOH color bands">
+        <span class="band soh-healthy"><b>90–100%</b> healthy</span>
+        <span class="band soh-caution"><b>80–90%</b> caution</span>
+        <span class="band soh-low"><b>0–80%</b> worn</span>
+      </div>
+    </aside>
+  </section>
+
+  <ol class="steps">
+    <li>
+      <h2>Physics prior</h2>
+      <p>Fade grows with cycles and throughput, and faster above 40&nbsp;°C.</p>
+    </li>
+    <li>
+      <h2>Neural residual</h2>
+      <p>A small network learns the leftover error the formula does not capture.</p>
+    </li>
+    <li>
+      <h2>Hybrid SOH</h2>
+      <p>Health is physics plus residual. Remaining life assumes usage stays constant.</p>
+    </li>
+  </ol>
+</main>
+{% endblock %}
